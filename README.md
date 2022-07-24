@@ -1,7 +1,7 @@
 # nvim-runscript
 Neovim users, you may not need Postman
 
-![nvim-runscript-demo](https://user-images.githubusercontent.com/61080/180636076-8dcc9a6f-b329-4729-aae1-e27c2fa7b3d5.gif)
+![nvim-runscript-demo](https://user-images.githubusercontent.com/61080/180638392-bc5fcb73-fe54-4af5-a256-926dfaf5a766.gif)
 
 
 ## Requirement
