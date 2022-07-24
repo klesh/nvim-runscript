@@ -1,0 +1,56 @@
+*nvim-runscript* NeoVim users, you may not need Postman
+
+Author: Klesh Wong <klesh@qq.com>
+
+==============================================================================
+CONTENTS                                                           *nvim-runscript*
+
+  1. Introduction                             |nvim-runscript-introduction|
+  2. Quickstart                               |nvim-runscript-quickstart|
+  3. Commands                                 |nvim-runscript-commands|
+  4. Setup/Configuration                      |nvim-runscript-setup|
+  5. Mappings                                 |nvim-runscript-mappings|
+
+==============================================================================
+ 1. INTRODUCTION                                      *nvim-runscript-introduction*
+
+Runs current script file with shell, capture and save the standard input/error in markdown format.
+
+
+==============================================================================
+ 2. QUICK START                                         *nvim-runscript-quickstart*
+
+Setup should be run in a lua file or in a |lua-heredoc| if using in a vim file.
+
+
+==============================================================================
+ 3. COMMANDS                                              *nvim-runscript-commands*
+
+|:RunScript|
+
+    Runs current script file with shell, capture and save the standard input/error in markdown format.
+
+
+==============================================================================
+ 4. SETUP                                                    *nvim-runscript-setup*
+
+You must run setup() function to initialise nvim-runscript.
+
+setup() function currently takes no argument.
+
+
+==============================================================================
+ 5. MAPPINGS                                              *nvim-runscript-mappings*
+
+nvim-runscript doesn't provide any mappings by default, you may define your own mapping by 
+
+lua
+>
+  vim.api.nvim_set_keymap('n', '<leader>rs', ':RunScript<cr>', { noremap = true })
+<
+
+vimscript
+>
+  :nnoremap <leader>rs :RunScript<cr>
+<
+
