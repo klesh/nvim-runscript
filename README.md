@@ -1,7 +1,19 @@
 # nvim-runscript
-Neovim users, you may not need Postman
+
+Neovim users, you may not need Postman, `nvim-runscript` is the lightweight plugin you may need for API observation,
+testing, and debugging in a Unix-Philosophy way.
 
 ![nvim-runscript-demo](https://user-images.githubusercontent.com/61080/180638392-bc5fcb73-fe54-4af5-a256-926dfaf5a766.gif)
+
+
+## Why
+
+- Lightweight and fast
+- The request scripts can be written in any language as long as they are executable
+- The request scripts can be added to Git repository and shared between teammates
+- You may run them in pure CLI without neovim for debugging purposes
+- It is easy to manipulate the response with tool that you like, and write complicated script
+  - [Fetch author detail of the github repository](example/github/get-repo-license.sh)
 
 
 ## Requirement
