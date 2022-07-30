@@ -14,6 +14,7 @@ testing, and debugging in a Unix-Philosophy way.
 - You may run them in pure CLI without neovim for debugging purposes
 - It is easy to manipulate the response with tool that you like, and write complicated script
   - [Fetch author detail of the github repository](example/github/get-repo-license.sh)
+  - [Fetch user profile with OAuth token](example/github/get-profile-with-oauth.sh)
 
 
 ## Requirement
