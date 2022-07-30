@@ -11,11 +11,18 @@
 . "$(dirname $0)/../vars/current.sh"
 
 # Third, source the OAuth functions file, you may copy it to whereever you like and change in anyway you want.
-. "$(dirname $0)/../libs/oauth.sh"
+OAUTH_SCRIPT_PATH="$(dirname $0)/../libs/oauth.sh"
+
+# It would be safer to keep your secrets in a GitIgnored file
+. "$(dirname $0)/../vars/my.secret.sh"
+# GITHUB_OAUTH_CLIENT_ID=
 
 # Finally, utilize the OAuth functions to get your access token. you may need to 
-TOKEN=$(get_oauth_token "$GITHUB_OAUTH_LOGIN_URI" "$GITHUB_OAUTH_TOKEN_URI" "$GITHUB_OAUTH_CLIENT_ID")
-
+TOKEN=$("$OAUTH_SCRIPT_PATH" \
+    "$GITHUB_OAUTH_LOGIN_URI" \
+    "$GITHUB_OAUTH_TOKEN_URI" \
+    "$GITHUB_OAUTH_CLIENT_ID" \
+    "$GITHUB_OAUTH_GRANT_TYPE")
 curl -sv "$GITHUB_ENDPOINT/user" \
     -H "Authorization: Bearer $TOKEN"
 

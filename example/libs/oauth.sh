@@ -4,8 +4,22 @@
 
 set -e
 
-OAUTH_JSON_PATH=/tmp/github_oauth_device.json
-OAUTH_TOKEN_JSON_PATH=/tmp/github
+# process arguments
+LOGIN_URL=$1
+TOKEN_URL=$2
+CLIENT_ID=$3
+GRANT_TYPE=$4
+
+# verify arguments
+if [ -z "$LOGIN_URL" ] || [ -z "$CLIENT_ID" ]; then
+    echo "Usage: $0 <login_url> <token_url> <client_id> <grant_type>" >&2
+    exit 1
+fi
+
+# generate variables
+FILENAME=$(echo $LOGIN_URL | grep -oP 'https://\K(.*?)(?=/)')
+LOGIN_JSON_PATH=/tmp/$FILENAME.login.json
+TOKEN_JSON_PATH=/tmp/$FILENAME.token.json
 OPEN=xdg-open
 # mac os
 if command -v open; then
@@ -15,27 +29,20 @@ elif command -v start; then
     OPEN=start
 fi
 BROWSER=${BROWSER-$OPEN}
+# echo "LOGIN_URL: $LOGIN_URL"
+# echo "TOKEN_URL: $TOKEN_URL"
+# echo "CLIENT_ID: $CLIENT_ID"
+# echo "GRANT_TYPE: $GRANT_TYPE"
+# echo "FILENAME: $FILENAME"
+# echo "LOGIN_JSON_PATH: $LOGIN_JSON_PATH"
+# echo "TOKEN_JSON_PATH: $TOKEN_JSON_PATH"
+# echo "BROWSER: $BROWSER"
 
-
-get_verification_code() {
-    LOGIN_URI=$1
-    CLIENT_ID=$2
-    FILE_PATH=$3
-    if [ -f "$FILE_PATH" ]; then
-        EXPIRED_IN=$(jq -r '.expires_in' "$FILE_PATH")
-        if [ "$EXPIRED_IN" -gt 0 ]; then
-            FILE_MOD_TS=$(date -r "$FILE_PATH" "+%s")
-            EXPIRED_TS=$(echo "$FILE_MOD_TS+$EXPIRED_IN" | bc)
-            NOW_TS=$(date "+%s")
-            if [ "$NOW_TS" -lt "$EXPIRED_TS" ]; then
-                return
-            fi
-        fi
-    fi
-    curl -sv "$OAUTH_URI" \
+fetch_login_json() {
+    curl -s "$LOGIN_URL" \
         -H "content-type: application/json" \
         -H "accept: application/json" \
-        --data @- <<JSON | tee $LOGIN_JSON_PATH
+        --data @- <<JSON > $LOGIN_JSON_PATH && echo OAUTH: fetch login json successfully >&2
         {
             "client_id": "$CLIENT_ID"
         }
@@ -51,67 +58,80 @@ JSON
     # }
 }
 
-get_access_token() {
-    OAUTH_TOKEN_URI=$1
-    CLIENT_ID=$2
-    LOGIN_JSON_PATH=$3
-    TOKEN_JSON_PATH=$4
-
-    if [ -f "$TOKEN_JSON_PATH" ]; then
-        TOKEN=$(jq -r '.access_token' "$TOKEN_JSON_PATH" || true)
-        if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
-            echo "$TOKEN"
-            return
-        fi
-    fi
-
+prompt_user_code() {
     USER_CODE=$(jq -r '.user_code' "$LOGIN_JSON_PATH")
     VERIFICATION_URI="$(jq -r '.verification_uri' "$LOGIN_JSON_PATH")"
-    DEVICE_CODE="$(jq -r '.device_code' "$LOGIN_JSON_PATH")"
-    echo "Please enter the following code on the popping up page:"
-    echo "  $USER_CODE"
-    echo ""
-    echo "If the page wasn't popped up, enter the following URL manually in your browser:"
-    echo "  $VERIFICATION_URI"
+    echo "OAuth: Please enter the following code on the popping up page:" >&2
+    echo "OAuth:   $USER_CODE" >&2
+    echo "OAuth: " >&2
+    echo "OAuth: If the page wasn't popped up, enter the following URL manually in your browser:" >&2
+    echo "OAuth:   $VERIFICATION_URI" >&2
+    echo "OAuth: " >&2
+    echo "OAuth: This script will wait 20 seconds and then try to fetch the AccessToken every 10 seconds, be patient" >&2
     sleep 3
-    "$BROWSER" "$VERIFICATION_URI"
-    TOKEN=
-    while [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; do
-        curl -sv "$OAUTH_TOKEN_URI" \
-            -H "content-type: application/json" \
-            -H "accept: application/json" \
-            --data @- <<JSON 2>/dev/null | tee $TOKEN_JSON_PATH || true
-                    {
-                        "client_id": "$CLIENT_ID",
-                        "device_code": "$DEVICE_CODE",
-                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
-                    }
+    "$BROWSER" "$VERIFICATION_URI" >&2
+    sleep 17
+}
+
+fetch_access_token() {
+    DEVICE_CODE="$(jq -r '.device_code' "$LOGIN_JSON_PATH" 2>/dev/null)"
+    echo "OAUTH: try to fetch access token" >&2
+    curl -s "$TOKEN_URL" \
+        -H "content-type: application/json" \
+        -H "accept: application/json" \
+        --data @- <<JSON > $TOKEN_JSON_PATH
+                {
+                    "client_id": "$CLIENT_ID",
+                    "device_code": "$DEVICE_CODE",
+                    "grant_type": "$GRANT_TYPE"
+                }
 JSON
-        # {
-        #   "access_token": "gho_16C7e42F292c6912E7710c838347Ae178B4a",
-        #   "token_type": "bearer",
-        #   "scope": "repo,gist"
-        # }
-        TOKEN=$(jq -r '.access_token' "$TOKEN_JSON_PATH" || true)
-        sleep 10
-    done
-    echo "$TOKEN"
+    # {
+    #   "access_token": "gho_16C7e42F292c6912E7710c838347Ae178B4a",
+    #   "token_type": "bearer",
+    #   "scope": "repo,gist"
+    # }
+    TOKEN=$(jq -r '.access_token' "$TOKEN_JSON_PATH" 2>/dev/null)
+    [ -n "$TOKEN" ] && ! [ "$TOKEN" = "null" ] && echo OAUTH: access token fetched successfully >&2
 }
 
-
-get_oauth_token() {
-    OAUTH_URI=$1
-    OAUTH_TOKEN_URI=$2
-    CLIENT_ID=$3
-    FILENAME=$(echo $OAUTH_URI | grep -oP 'https://\K(.*?)(?=/)')
-    LOGIN_JSON_PATH=/tmp/$FILENAME.login.json
-    TOKEN_JSON_PATH=/tmp/$FILENAME.token.json
-    if [ -z "$OAUTH_URI" ] || [ -z "$CLIENT_ID" ]; then
-        echo "get_oauth_token: invalid arguments, expecting <oauth_uri> <client_id>" >&2
-        exit 1
+is_login_json_valid() {
+    if [ -f "$LOGIN_JSON_PATH" ]; then
+        EXPIRED_IN=$(jq -r '.expires_in' "$LOGIN_JSON_PATH" 2>/dev/null)
+        if [ "$EXPIRED_IN" -gt 0 ]; then
+            LOGIN_TS=$(date -r "$LOGIN_JSON_PATH" "+%s")
+            EXPIRED_TS=$(echo "$LOGIN_TS+$EXPIRED_IN-120" | bc)
+            NOW_TS=$(date "+%s")
+            if [ "$NOW_TS" -lt "$EXPIRED_TS" ]; then
+                # if [ -f "$TOKEN_JSON_PATH" ]; then
+                #     TOKEN_TS=$(date -r "$TOKEN_JSON_PATH" "+%s")
+                #     if [ "$TOKEN_TS" -lt "$LOGIN_TS" ]; then
+                #         rm "$TOKEN_JSON_PATH"
+                #     fi
+                # elif grep -qF "error" "$TOKEN_JSON_PATH"; then
+                #     rm "$LOGIN_JSON_PATH"
+                #     return 1
+                # fi
+                return 0
+            fi
+        fi
     fi
-
-    get_verification_code "$OAUTH_URI" "$CLIENT_ID" "$LOGIN_JSON_PATH"
-    get_access_token "$OAUTH_TOKEN_URI" "$CLIENT_ID" "$LOGIN_JSON_PATH" "$TOKEN_JSON_PATH"
+    return 1
 }
 
+
+# fetch_access_token
+# load_access_token
+TIMEOUT=$(echo $(date '+%s')+90 | bc)
+while [ "$(date '+%s')" -lt "$TIMEOUT" ]; do
+    if ! is_login_json_valid ;then
+        fetch_login_json
+        prompt_user_code
+    fi
+    if fetch_access_token; then
+        break
+    else
+        sleep 10
+    fi
+done
+echo "$TOKEN"
