@@ -1,4 +1,4 @@
-*nvim-runscript* NeoVim users, you may not need Postman
+*nvim-runscript.txt* NeoVim users, you may not need Postman
 
 Author: Klesh Wong <klesh@qq.com>
 
